@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-shipmentlabel}
+      POSTGRES_USER: ${POSTGRES_USER:-shipmentlabel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shipmentlabel}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-shipmentlabel}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-shipmentlabel}
+      EPG_API_KEY_SANDBOX: ${EPG_API_KEY_SANDBOX:-}
+      EPG_API_KEY_PRODUCTION: ${EPG_API_KEY_PRODUCTION:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
+      SESSION_HOURS: ${SESSION_HOURS:-12}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      LABEL_STORAGE_ROOT: /data
+      LABEL_PDF_DPI_FALLBACK: ${LABEL_PDF_DPI_FALLBACK:-203}
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/New_York}
+      BULK_MAX_ROWS: ${BULK_MAX_ROWS:-500}
+    volumes:
+      - label_storage:/data
+    ports:
+      - "8000:8000"
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
+  label_storage:
