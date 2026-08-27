@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { toast } from 'sonner'
 
+import { Field } from '@/components/app/field'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -16,6 +17,10 @@ export default function SettingsPage() {
   const [form, setForm] = useState<FormState | null>(null)
   const [availableEnvironments, setAvailableEnvironments] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+
+  const labelDirectoryId = useId()
+  const defaultServiceCodeId = useId()
+  const epgEnvironmentId = useId()
 
   useEffect(() => {
     api.get<SettingsOut>('/settings').then((data) => {
@@ -91,8 +96,9 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Save directory</Label>
+              <Label htmlFor={labelDirectoryId}>Save directory</Label>
               <Input
+                id={labelDirectoryId}
                 value={form.label_directory}
                 onChange={(e) => update('label_directory', e.target.value)}
                 placeholder="labels"
@@ -100,15 +106,15 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground">Relative to the storage volume, e.g. &quot;labels&quot;.</p>
             </div>
             <div className="space-y-2">
-              <Label>Default service code</Label>
-              <Select value={form.default_service_code} onChange={(e) => update('default_service_code', e.target.value)}>
+              <Label htmlFor={defaultServiceCodeId}>Default service code</Label>
+              <Select id={defaultServiceCodeId} value={form.default_service_code} onChange={(e) => update('default_service_code', e.target.value)}>
                 <option value="EP03">EP03 — Domestic Priority Parcel</option>
                 <option value="EP05">EP05 — Domestic eDGE</option>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>EPG environment</Label>
-              <Select value={form.epg_environment} onChange={(e) => update('epg_environment', e.target.value)}>
+              <Label htmlFor={epgEnvironmentId}>EPG environment</Label>
+              <Select id={epgEnvironmentId} value={form.epg_environment} onChange={(e) => update('epg_environment', e.target.value)}>
                 {availableEnvironments.map((env) => (
                   <option key={env} value={env}>
                     {env === 'sandbox' ? 'Sandbox' : 'Production'}
@@ -128,27 +134,6 @@ export default function SettingsPage() {
           {saving ? 'Saving…' : 'Save settings'}
         </Button>
       </form>
-    </div>
-  )
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  required,
-  className,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  required?: boolean
-  className?: string
-}) {
-  return (
-    <div className={`space-y-2 ${className ?? ''}`}>
-      <Label>{label}</Label>
-      <Input value={value} onChange={(e) => onChange(e.target.value)} required={required} />
     </div>
   )
 }

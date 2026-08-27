@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Download, Upload } from 'lucide-react'
@@ -20,6 +20,8 @@ export default function BulkUploadPage() {
   const [dimensionOverride, setDimensionOverride] = useState('')
   const [uploading, setUploading] = useState(false)
   const [runs, setRuns] = useState<BulkRunOut[]>([])
+  const weightOverrideId = useId()
+  const dimensionOverrideId = useId()
 
   function loadRuns() {
     api.get<BulkRunOut[]>('/bulk/runs').then(setRuns)
@@ -81,10 +83,10 @@ export default function BulkUploadPage() {
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">
+                <label htmlFor={weightOverrideId} className="text-xs font-medium text-muted-foreground">
                   Weight unit override (optional — overrides every row&apos;s unit column)
                 </label>
-                <Select value={weightOverride} onChange={(e) => setWeightOverride(e.target.value)}>
+                <Select id={weightOverrideId} value={weightOverride} onChange={(e) => setWeightOverride(e.target.value)}>
                   <option value="">Use each row&apos;s own unit</option>
                   <option value="oz">oz</option>
                   <option value="lb">lb</option>
@@ -92,10 +94,10 @@ export default function BulkUploadPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">
+                <label htmlFor={dimensionOverrideId} className="text-xs font-medium text-muted-foreground">
                   Dimension unit override (optional)
                 </label>
-                <Select value={dimensionOverride} onChange={(e) => setDimensionOverride(e.target.value)}>
+                <Select id={dimensionOverrideId} value={dimensionOverride} onChange={(e) => setDimensionOverride(e.target.value)}>
                   <option value="">Use each row&apos;s own unit</option>
                   <option value="inch">inch</option>
                   <option value="cm">cm</option>

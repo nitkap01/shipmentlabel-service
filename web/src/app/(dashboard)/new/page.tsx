@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
+import { Field } from '@/components/app/field'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -50,6 +51,12 @@ export default function NewLabelPage() {
     email: '',
   })
   const [submitting, setSubmitting] = useState(false)
+
+  const stateId = useId()
+  const weightId = useId()
+  const dimensionUnitId = useId()
+  const referenceId = useId()
+  const serviceCodeId = useId()
 
   function set<K extends keyof typeof form>(key: K, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -146,8 +153,8 @@ export default function NewLabelPage() {
             />
             <Field label="City" value={form.recipient_city} onChange={(v) => set('recipient_city', v)} required />
             <div className="space-y-2">
-              <Label>State</Label>
-              <Select value={form.recipient_state} onChange={(e) => set('recipient_state', e.target.value)} required>
+              <Label htmlFor={stateId}>State</Label>
+              <Select id={stateId} value={form.recipient_state} onChange={(e) => set('recipient_state', e.target.value)} required>
                 <option value="">Select…</option>
                 {US_STATE_CODES.map((code) => (
                   <option key={code} value={code}>
@@ -174,9 +181,10 @@ export default function NewLabelPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Weight</Label>
+                <Label htmlFor={weightId}>Weight</Label>
                 <div className="flex gap-2">
                   <Input
+                    id={weightId}
                     type="number"
                     step="0.01"
                     min="0"
@@ -211,8 +219,8 @@ export default function NewLabelPage() {
                 <Field label="Width" type="number" value={form.width_value} onChange={(v) => set('width_value', v)} />
                 <Field label="Height" type="number" value={form.height_value} onChange={(v) => set('height_value', v)} />
                 <div className="space-y-2">
-                  <Label>Unit</Label>
-                  <Select value={form.dimension_unit} onChange={(e) => set('dimension_unit', e.target.value)}>
+                  <Label htmlFor={dimensionUnitId}>Unit</Label>
+                  <Select id={dimensionUnitId} value={form.dimension_unit} onChange={(e) => set('dimension_unit', e.target.value)}>
                     <option value="inch">inch</option>
                     <option value="cm">cm</option>
                   </Select>
@@ -222,13 +230,13 @@ export default function NewLabelPage() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Reference / order #</Label>
-                <Input value={form.reference1} onChange={(e) => set('reference1', e.target.value)} maxLength={50} />
+                <Label htmlFor={referenceId}>Reference / order #</Label>
+                <Input id={referenceId} value={form.reference1} onChange={(e) => set('reference1', e.target.value)} maxLength={50} />
                 {referenceHint && <p className="text-xs text-muted-foreground">{referenceHint}</p>}
               </div>
               <div className="space-y-2">
-                <Label>Service code</Label>
-                <Select value={form.service_code} onChange={(e) => set('service_code', e.target.value)}>
+                <Label htmlFor={serviceCodeId}>Service code</Label>
+                <Select id={serviceCodeId} value={form.service_code} onChange={(e) => set('service_code', e.target.value)}>
                   <option value="">Use account default</option>
                   <option value="EP03">EP03 — Domestic Priority Parcel</option>
                   <option value="EP05">EP05 — Domestic eDGE</option>
@@ -293,29 +301,6 @@ export default function NewLabelPage() {
           {submitting ? 'Generating…' : 'Generate label'}
         </Button>
       </form>
-    </div>
-  )
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  required,
-  className,
-  type = 'text',
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  required?: boolean
-  className?: string
-  type?: string
-}) {
-  return (
-    <div className={`space-y-2 ${className ?? ''}`}>
-      <Label>{label}</Label>
-      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} required={required} />
     </div>
   )
 }

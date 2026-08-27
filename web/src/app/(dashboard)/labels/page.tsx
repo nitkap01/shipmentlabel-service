@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
 
@@ -22,6 +22,11 @@ export default function LabelsPage() {
   const [page, setPage] = useState(1)
   const [data, setData] = useState<LabelListResponse | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const searchId = useId()
+  const statusId = useId()
+  const fromDateId = useId()
+  const toDateId = useId()
 
   useEffect(() => {
     setLoading(true)
@@ -54,10 +59,11 @@ export default function LabelsPage() {
       <Card>
         <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-end">
           <div className="flex-1 space-y-2">
-            <label className="text-xs font-medium text-muted-foreground">Search</label>
+            <label htmlFor={searchId} className="text-xs font-medium text-muted-foreground">Search</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                id={searchId}
                 className="pl-9"
                 placeholder="Name, address, phone, reference…"
                 value={q}
@@ -69,8 +75,9 @@ export default function LabelsPage() {
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground">Status</label>
+            <label htmlFor={statusId} className="text-xs font-medium text-muted-foreground">Status</label>
             <Select
+              id={statusId}
               value={status}
               onChange={(e) => {
                 setPage(1)
@@ -86,8 +93,9 @@ export default function LabelsPage() {
             </Select>
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground">From</label>
+            <label htmlFor={fromDateId} className="text-xs font-medium text-muted-foreground">From</label>
             <Input
+              id={fromDateId}
               type="date"
               value={fromDate}
               onChange={(e) => {
@@ -97,8 +105,9 @@ export default function LabelsPage() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground">To</label>
+            <label htmlFor={toDateId} className="text-xs font-medium text-muted-foreground">To</label>
             <Input
+              id={toDateId}
               type="date"
               value={toDate}
               onChange={(e) => {
