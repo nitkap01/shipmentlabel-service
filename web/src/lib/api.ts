@@ -84,6 +84,7 @@ export interface LabelOut {
   pdf_path: string | null
   voided_at: string | null
   void_error: string | null
+  manifest_close_id: number | null
 }
 
 export interface LabelListResponse {
@@ -119,6 +120,16 @@ export interface SettingsOut {
   last_quota_checked_at: string | null
 }
 
+export interface DirectoryEntry {
+  name: string
+  path: string
+}
+
+export interface DirectoryListing {
+  path: string
+  entries: DirectoryEntry[]
+}
+
 export interface BulkRunOut {
   id: number
   created_at: string
@@ -136,4 +147,30 @@ export interface BulkRunOut {
 export interface BulkUploadResponse {
   run: BulkRunOut
   row_errors: { row_number: number; error: string }[]
+}
+
+export interface ManifestCloseOut {
+  id: number
+  created_at: string
+  finished_at: string | null
+  status: 'pending' | 'completed' | 'failed'
+  epg_environment: string
+  account_number: string
+  close_id: string | null
+  close_reports: unknown
+  candidate_label_ids: number[]
+  error_message: string | null
+  resolved_manually: boolean
+  label_count: number
+}
+
+export interface ManifestOpenSummary {
+  environment: string
+  configured_account_number: string | null
+  open_count: number
+  epg_account_number: string | null
+  epg_package_count: number | null
+  epg_checked_at: string
+  epg_error: string | null
+  pending_close: ManifestCloseOut | null
 }

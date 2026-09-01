@@ -1,5 +1,6 @@
 import datetime
 from decimal import Decimal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -85,6 +86,7 @@ class LabelOut(BaseModel):
     pdf_path: str | None
     voided_at: datetime.datetime | None
     void_error: str | None
+    manifest_close_id: int | None
 
     model_config = {"from_attributes": True}
 
@@ -142,6 +144,21 @@ class SettingsUpdate(BaseModel):
     epg_environment: str
 
 
+class DirectoryEntry(BaseModel):
+    name: str
+    path: str
+
+
+class DirectoryListing(BaseModel):
+    path: str
+    entries: list[DirectoryEntry]
+
+
+class DirectoryCreate(BaseModel):
+    path: str = ""
+    name: str
+
+
 class BulkRunOut(BaseModel):
     id: int
     created_at: datetime.datetime
@@ -166,3 +183,35 @@ class BulkRowError(BaseModel):
 class BulkUploadResponse(BaseModel):
     run: BulkRunOut
     row_errors: list[BulkRowError]
+
+
+class ManifestCloseOut(BaseModel):
+    id: int
+    created_at: datetime.datetime
+    finished_at: datetime.datetime | None
+    status: str
+    epg_environment: str
+    account_number: str
+    close_id: str | None
+    close_reports: Any | None
+    candidate_label_ids: list[int]
+    error_message: str | None
+    resolved_manually: bool
+    label_count: int
+
+    model_config = {"from_attributes": True}
+
+
+class ManifestOpenSummary(BaseModel):
+    environment: str
+    configured_account_number: str | None
+    open_count: int
+    epg_account_number: str | None
+    epg_package_count: int | None
+    epg_checked_at: datetime.datetime
+    epg_error: str | None
+    pending_close: ManifestCloseOut | None
+
+
+class ManifestCloseResolve(BaseModel):
+    outcome: Literal["completed", "failed"]

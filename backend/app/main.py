@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from app.bulk.runner import poll_forever
 from app.db import run_migrations
-from app.routers import auth, bulk, health, labels, settings
+from app.routers import auth, bulk, health, labels, manifest, settings
 
 
 @asynccontextmanager
@@ -27,3 +27,4 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
 app.include_router(labels.router, prefix="/api")
 app.include_router(bulk.router, prefix="/api")
+app.include_router(manifest.router, prefix="/api")

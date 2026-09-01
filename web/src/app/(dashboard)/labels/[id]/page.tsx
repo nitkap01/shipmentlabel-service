@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { Download, Ban } from 'lucide-react'
 import { toast } from 'sonner'
@@ -111,6 +112,16 @@ export default function LabelDetailPage() {
             {label.reference1 && <Row label="Reference" value={label.reference1} />}
             <Row label="Tracking number" value={label.tracking_number ?? '—'} />
             <Row label="EPG reference ID" value={label.unique_reference_id ?? '—'} />
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">Manifest close</span>
+              {label.manifest_close_id ? (
+                <Link href={`/manifest/${label.manifest_close_id}`} className="font-medium text-primary hover:underline">
+                  Close #{label.manifest_close_id}
+                </Link>
+              ) : (
+                <span className="text-right font-medium">—</span>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

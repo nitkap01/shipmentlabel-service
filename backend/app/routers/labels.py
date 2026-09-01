@@ -65,6 +65,8 @@ async def list_labels(
     to_date: datetime.date | None = None,
     status: str | None = None,
     bulk_run_id: int | None = None,
+    open_only: bool = False,
+    manifest_close_id: int | None = None,
     page: int = 1,
     page_size: int = 25,
     db: AsyncSession = Depends(get_db),
@@ -82,6 +84,18 @@ async def list_labels(
     if bulk_run_id:
         query = query.where(Label.bulk_run_id == bulk_run_id)
         count_query = count_query.where(Label.bulk_run_id == bulk_run_id)
+    if manifest_close_id is not None:
+        query = query.where(Label.manifest_close_id == manifest_close_id)
+        count_query = count_query.where(Label.manifest_close_id == manifest_close_id)
+    if open_only:
+        settings_row = await get_settings_row(db)
+        open_clause = (
+            Label.status == "created",
+            Label.manifest_close_id.is_(None),
+            Label.epg_environment == settings_row.epg_environment,
+        )
+        query = query.where(*open_clause)
+        count_query = count_query.where(*open_clause)
     if from_date:
         start = datetime.datetime.combine(from_date, datetime.time.min, tzinfo=APP_TZ)
         query = query.where(Label.created_at >= start)

@@ -30,13 +30,16 @@ def _migrate_test_db():
 @pytest.fixture(autouse=True)
 async def _reset_db():
     async with SessionLocal() as db:
-        await db.execute(text("TRUNCATE bulk_run_rows, labels, bulk_runs RESTART IDENTITY CASCADE"))
+        await db.execute(
+            text("TRUNCATE bulk_run_rows, labels, bulk_runs, manifest_closes RESTART IDENTITY CASCADE")
+        )
         await db.execute(
             text(
                 "UPDATE app_settings SET from_name='Navdeep Bajaj', from_company='Green Shadow Enterprises', "
                 "from_address1='293 Whitehead Rd', from_address2=NULL, from_city='Trenton', from_state='NJ', "
                 "from_postal_code='08619-3250', label_directory='labels', default_service_code='EP05', "
-                "epg_environment='sandbox' WHERE id = 1"
+                "epg_environment='sandbox', epg_account_number_sandbox=NULL, "
+                "epg_account_number_production=NULL WHERE id = 1"
             )
         )
         await db.commit()

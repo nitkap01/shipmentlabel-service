@@ -69,3 +69,15 @@ async def test_rate_then_ship_then_void_against_sandbox():
         pass
     finally:
         await epg_client.void("sandbox", unique_reference_id)
+
+
+@pytest.mark.skipif(not RUN_INTEGRATION, reason="set RUN_EPG_INTEGRATION_TESTS=1 to run against real EPG sandbox")
+async def test_list_open_against_sandbox_never_raises():
+    # Read-only (F2: it costs quota but changes nothing). Never call
+    # close_manifest() here — unlike ship/void, a real close is not
+    # reversible, and this suite must never perform one (see the task doc's
+    # Phase 4 gate).
+    raw, quota = await epg_client.list_open("sandbox")
+    packages = epg_mapping.parse_open_packages(raw)
+    assert isinstance(packages, list)
+    assert isinstance(quota, dict)

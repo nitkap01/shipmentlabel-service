@@ -112,6 +112,72 @@ async def ship(environment: str, body: dict) -> tuple[dict, dict[str, str]]:
     return await _post(environment, "/api/v1/ship", body)
 
 
+async def list_open(environment: str) -> tuple[list | dict, dict[str, str]]:
+    """`GET /api/v1/Ship/Close` — account number + open package count (F1).
+
+    With nothing open, EPG answers `HTTP 204 No Content` with an empty body
+    (F2) — this is the ordinary "nothing open" state, not an error, so it is
+    normalised to `([], quota)` rather than raising on `.json()`.
+    """
+    base_url, key = _base_url_and_key(environment)
+    async with httpx.AsyncClient(timeout=30.0, verify=_verify_for(base_url)) as client:
+        try:
+            resp = await client.get(
+                f"{base_url}/api/v1/Ship/Close",
+                headers={"Authorization": f"Bearer {key}"},
+            )
+        except httpx.RequestError as exc:
+            raise EPGTimeoutError(f"Network error calling EPG: {exc}") from exc
+
+    quota = quota_from_headers(resp.headers)
+
+    if resp.status_code >= 400:
+        raise EPGError(f"EPG HTTP {resp.status_code}", status_code=resp.status_code)
+
+    if resp.status_code == 204 or not resp.content:
+        return [], quota
+
+    try:
+        data = resp.json()
+    except ValueError:
+        return [], quota
+
+    return data if data is not None else [], quota
+
+
+async def close_manifest(environment: str, account_number: str) -> tuple[dict, dict[str, str]]:
+    """`POST /api/v1/Ship/Close?accountNumber=<n>` — no JSON request body, so
+    `_post()` cannot be reused. Response shape is unverified (F6, close is a
+    real stateful carrier action never yet called from this app), so an
+    empty/non-JSON body is tolerated the same way `list_open` tolerates one.
+    """
+    base_url, key = _base_url_and_key(environment)
+    async with httpx.AsyncClient(timeout=30.0, verify=_verify_for(base_url)) as client:
+        try:
+            resp = await client.post(
+                f"{base_url}/api/v1/Ship/Close",
+                params={"accountNumber": account_number},
+                headers={"Authorization": f"Bearer {key}"},
+            )
+        except httpx.RequestError as exc:
+            raise EPGTimeoutError(f"Network error calling EPG: {exc}") from exc
+
+    quota = quota_from_headers(resp.headers)
+
+    if resp.status_code >= 400:
+        raise EPGError(f"EPG HTTP {resp.status_code}", status_code=resp.status_code)
+
+    if not resp.content:
+        return {}, quota
+
+    try:
+        data = resp.json()
+    except ValueError:
+        return {}, quota
+
+    return data if isinstance(data, dict) else {}, quota
+
+
 async def void(environment: str, unique_reference_id: str) -> dict:
     base_url, key = _base_url_and_key(environment)
     async with httpx.AsyncClient(timeout=30.0, verify=_verify_for(base_url)) as client:

@@ -133,6 +133,122 @@ def strip_image_payload(response: dict) -> dict:
     return stripped
 
 
+def parse_open_packages(response) -> list[dict]:
+    """Normalise `GET /api/v1/Ship/Close`'s documented shape (F1):
+    `[{"accountNumber": "...", "packageCount": n}]`. Tolerates `None`/empty
+    (F2's 204 case) and a bare object in place of the array.
+    """
+    if not response:
+        return []
+    if isinstance(response, dict):
+        response = [response]
+    if not isinstance(response, list):
+        return []
+
+    result = []
+    for item in response:
+        if not isinstance(item, dict):
+            continue
+        account_number = item.get("accountNumber") or item.get("AccountNumber")
+        raw_count = item.get("packageCount")
+        if raw_count is None:
+            raw_count = item.get("PackageCount")
+        try:
+            package_count = int(raw_count) if raw_count is not None else 0
+        except (TypeError, ValueError):
+            package_count = 0
+        result.append(
+            {
+                "account_number": str(account_number) if account_number is not None else None,
+                "package_count": package_count,
+            }
+        )
+    return result
+
+
+_CLOSE_ID_KEYS = ("closeId", "CloseId", "closeID", "close_id")
+_CLOSE_REPORTS_KEYS = ("closeReports", "CloseReports", "closeReport", "close_reports")
+
+
+def extract_close_id(response) -> str | None:
+    """Defensive about casing and about the value living under `package`
+    (F6: no real POST /Ship/Close response has ever been seen)."""
+    if not isinstance(response, dict):
+        return None
+    for key in _CLOSE_ID_KEYS:
+        value = response.get(key)
+        if value:
+            return str(value)
+    package = response.get("package")
+    if isinstance(package, dict):
+        for key in _CLOSE_ID_KEYS:
+            value = package.get(key)
+            if value:
+                return str(value)
+    return None
+
+
+def extract_close_reports(response):
+    """Same defensiveness as `extract_close_id` — key casing and location
+    are both guesses until Phase 4's first real close (F6)."""
+    if not isinstance(response, dict):
+        return None
+    for key in _CLOSE_REPORTS_KEYS:
+        if key in response and response[key] is not None:
+            return response[key]
+    package = response.get("package")
+    if isinstance(package, dict):
+        for key in _CLOSE_REPORTS_KEYS:
+            if key in package and package[key] is not None:
+                return package[key]
+    return None
+
+
+def extract_account_number(response: dict) -> str | None:
+    """The EPG account number is returned for free in every rate/ship
+    response (F3) — at `package.rates[].accountNumber` on sandbox, and at
+    `package.selectedRate.accountNumber` observed on production. Used to
+    auto-capture the number into settings rather than have an admin type it.
+    """
+    if not isinstance(response, dict):
+        return None
+    package = response.get("package")
+    if not isinstance(package, dict):
+        return None
+
+    rates = package.get("rates")
+    if isinstance(rates, list):
+        for rate in rates:
+            if isinstance(rate, dict) and rate.get("accountNumber"):
+                return str(rate["accountNumber"])
+
+    selected_rate = package.get("selectedRate")
+    if isinstance(selected_rate, dict) and selected_rate.get("accountNumber"):
+        return str(selected_rate["accountNumber"])
+
+    if package.get("accountNumber"):
+        return str(package["accountNumber"])
+
+    return None
+
+
+def truncate_long_strings(value, max_len: int = 2000):
+    """Debugging-copy guard for `manifest_closes.epg_response_json` — same
+    intent as `strip_image_payload`, but the close response's shape is
+    unknown (F6), so this truncates any long string wherever it appears
+    instead of targeting a specific known field.
+    """
+    if isinstance(value, str):
+        if len(value) <= max_len:
+            return value
+        return f"{value[:max_len]}...<truncated, {len(value)} chars total>"
+    if isinstance(value, dict):
+        return {k: truncate_long_strings(v, max_len) for k, v in value.items()}
+    if isinstance(value, list):
+        return [truncate_long_strings(v, max_len) for v in value]
+    return value
+
+
 def strip_auth_header(request_body: dict) -> dict:
     """No-op placeholder: the auth header is never part of the JSON body, only headers.
     Kept as the single place D13's "strip credentials before storing" rule lives, in

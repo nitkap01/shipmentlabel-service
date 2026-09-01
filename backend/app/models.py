@@ -1,5 +1,6 @@
 import datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import BigInteger, Computed, DateTime, ForeignKey, SmallInteger
 from sqlalchemy.dialects.postgresql import JSONB
@@ -32,6 +33,9 @@ class AppSettings(Base):
     label_directory: Mapped[str]
     default_service_code: Mapped[str]
     epg_environment: Mapped[str]
+
+    epg_account_number_sandbox: Mapped[str | None]
+    epg_account_number_production: Mapped[str | None]
 
     last_quota_available: Mapped[int | None]
     last_quota_checked_at: Mapped[datetime.datetime | None]
@@ -72,6 +76,8 @@ class Label(Base):
     status: Mapped[str]
     source: Mapped[str]
     bulk_run_id: Mapped[int | None] = mapped_column(ForeignKey("bulk_runs.id"))
+    manifest_close_id: Mapped[int | None] = mapped_column(ForeignKey("manifest_closes.id"))
+    epg_environment: Mapped[str]
 
     service_code: Mapped[str]
 
@@ -149,3 +155,24 @@ class BulkRunRow(Base):
 
     label_id: Mapped[int | None] = mapped_column(ForeignKey("labels.id"))
     processed_at: Mapped[datetime.datetime | None]
+
+
+class ManifestClose(Base):
+    __tablename__ = "manifest_closes"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    created_at: Mapped[datetime.datetime]
+    finished_at: Mapped[datetime.datetime | None]
+
+    status: Mapped[str]
+    epg_environment: Mapped[str]
+    account_number: Mapped[str]
+
+    close_id: Mapped[str | None]
+    # Shape unknown (F6 — the vendor doc gives no sample POST /Ship/Close
+    # response). Stored as-is, whatever it turns out to be.
+    close_reports: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
+    candidate_label_ids: Mapped[list] = mapped_column(JSONB)
+    epg_response_json: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
+    error_message: Mapped[str | None]
+    resolved_manually: Mapped[bool]

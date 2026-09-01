@@ -4,13 +4,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings as app_settings
 from app.db import get_db
 from app.labels_service import get_settings_row
-from app.schemas import SettingsOut, SettingsUpdate
+from app.schemas import (
+    DirectoryCreate,
+    DirectoryEntry,
+    DirectoryListing,
+    SettingsOut,
+    SettingsUpdate,
+)
 from app.security import require_admin
-from app.storage import StoragePathError, validate_relative_subpath
+from app.storage import (
+    StorageDirectoryNotFound,
+    StoragePathError,
+    create_subdirectory,
+    list_subdirectory_names,
+    normalize_directory_path,
+    validate_relative_subpath,
+)
 
 router = APIRouter(dependencies=[Depends(require_admin)])
 
 VALID_SERVICE_CODES = {"EP03", "EP05"}
+
+
+def _child_path(parent: str, name: str) -> str:
+    return f"{parent}/{name}" if parent else name
 
 
 def _available_environments() -> list[str]:
@@ -29,6 +46,37 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
         **{c: getattr(row, c) for c in SettingsOut.model_fields if hasattr(row, c)},
         available_environments=_available_environments(),
     )
+
+
+@router.get("/settings/directories", response_model=DirectoryListing)
+async def list_directories(path: str = ""):
+    try:
+        normalized = normalize_directory_path(path)
+        names = list_subdirectory_names(normalized)
+    except StorageDirectoryNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except StoragePathError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    return DirectoryListing(
+        path=normalized,
+        entries=[DirectoryEntry(name=name, path=_child_path(normalized, name)) for name in names],
+    )
+
+
+@router.post("/settings/directories", response_model=DirectoryEntry)
+async def create_directory(payload: DirectoryCreate):
+    try:
+        normalized = normalize_directory_path(payload.path)
+        created = create_subdirectory(normalized, payload.name)
+    except StorageDirectoryNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except StoragePathError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except FileExistsError:
+        raise HTTPException(status_code=409, detail="A folder with that name already exists")
+
+    return DirectoryEntry(name=created, path=_child_path(normalized, created))
 
 
 @router.put("/settings", response_model=SettingsOut)

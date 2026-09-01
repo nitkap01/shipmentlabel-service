@@ -3,10 +3,10 @@
 import { useEffect, useId, useState } from 'react'
 import { toast } from 'sonner'
 
+import { DirectoryPicker } from '@/components/app/directory-picker'
 import { Field } from '@/components/app/field'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { api, ApiError, type SettingsOut } from '@/lib/api'
@@ -18,7 +18,6 @@ export default function SettingsPage() {
   const [availableEnvironments, setAvailableEnvironments] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
-  const labelDirectoryId = useId()
   const defaultServiceCodeId = useId()
   const epgEnvironmentId = useId()
 
@@ -95,15 +94,9 @@ export default function SettingsPage() {
             <CardTitle>Labels &amp; shipping</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor={labelDirectoryId}>Save directory</Label>
-              <Input
-                id={labelDirectoryId}
-                value={form.label_directory}
-                onChange={(e) => update('label_directory', e.target.value)}
-                placeholder="labels"
-              />
-              <p className="text-xs text-muted-foreground">Relative to the storage volume, e.g. &quot;labels&quot;.</p>
+            <div className="space-y-2 sm:col-span-2">
+              <p className="text-sm font-medium leading-none">Save directory</p>
+              <DirectoryPicker value={form.label_directory} onChange={(v) => update('label_directory', v)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor={defaultServiceCodeId}>Default service code</Label>

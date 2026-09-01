@@ -58,6 +58,7 @@ async def create_label(
         status="pending",
         source=source,
         bulk_run_id=bulk_run_id,
+        epg_environment=settings_row.epg_environment,
         service_code=fields["service_code"],
         recipient_name=fields["recipient_name"],
         recipient_company=fields.get("recipient_company"),
@@ -138,7 +139,8 @@ async def create_label(
         return label
 
     label.epg_response_json = epg_mapping.strip_image_payload(response)
-    await _mirror_quota(db, settings_row, quota)
+    await mirror_quota(db, settings_row, quota)
+    await capture_account_number(db, settings_row, settings_row.epg_environment, response)
 
     if not epg_mapping.is_success(response):
         _, message = epg_mapping.extract_error(response)
@@ -171,7 +173,7 @@ async def create_label(
     return label
 
 
-async def _mirror_quota(db: AsyncSession, settings_row: AppSettings, quota: dict[str, str]) -> None:
+async def mirror_quota(db: AsyncSession, settings_row: AppSettings, quota: dict[str, str]) -> None:
     available = quota.get("x-quota-available") or quota.get("X-Quota-Available")
     if available is None:
         return
@@ -181,6 +183,24 @@ async def _mirror_quota(db: AsyncSession, settings_row: AppSettings, quota: dict
         return
     settings_row.last_quota_checked_at = datetime.now(timezone.utc)
     await db.flush()
+
+
+async def capture_account_number(
+    db: AsyncSession, settings_row: AppSettings, environment: str, response: dict
+) -> None:
+    """Auto-capture (revised D28): every successful `ship` (and `rate`, were
+    it ever called — it currently isn't, see the manifest close task doc)
+    reads `accountNumber` out of the response and self-heals it into the
+    per-environment settings column, creating it if unset and overwriting it
+    if the value changed. Never cross-writes sandbox/production.
+    """
+    account_number = epg_mapping.extract_account_number(response)
+    if not account_number:
+        return
+    column = "epg_account_number_sandbox" if environment == "sandbox" else "epg_account_number_production"
+    if getattr(settings_row, column) != account_number:
+        setattr(settings_row, column, account_number)
+        await db.flush()
 
 
 async def get_settings_row(db: AsyncSession) -> AppSettings:

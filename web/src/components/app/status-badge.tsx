@@ -39,3 +39,19 @@ export function LabelStatusBadge({ status }: { status: string }) {
 export function RunStatusBadge({ status }: { status: string }) {
   return <Badge variant={RUN_STATUS_VARIANTS[status] ?? 'secondary'}>{RUN_STATUS_TEXT[status] ?? status}</Badge>
 }
+
+const CLOSE_STATUS_VARIANTS: Record<string, 'success' | 'destructive' | 'warning' | 'secondary'> = {
+  completed: 'success',
+  failed: 'destructive',
+  pending: 'warning',
+}
+
+const CLOSE_STATUS_TEXT: Record<string, string> = {
+  completed: 'Completed',
+  failed: 'Failed',
+  pending: 'Needs checking',
+}
+
+export function CloseStatusBadge({ status }: { status: string }) {
+  return <Badge variant={CLOSE_STATUS_VARIANTS[status] ?? 'secondary'}>{CLOSE_STATUS_TEXT[status] ?? status}</Badge>
+}
