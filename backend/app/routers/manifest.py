@@ -166,6 +166,18 @@ async def create_close(db: AsyncSession = Depends(get_db)):
     await mirror_quota(db, settings_row, quota)
     close.epg_response_json = epg_mapping.truncate_long_strings(response)
 
+    if epg_mapping.is_ambiguous_close_response(response):
+        close.error_message = (
+            "EPG returned no confirmation for this close (empty response). "
+            "The outcome is unknown — check whether EPG still reports open "
+            "packages, then resolve this close manually."
+        )
+        await db.commit()
+        raise HTTPException(
+            status_code=502,
+            detail=f"EPG close #{close.id} returned no confirmation; it needs manual checking. Labels are still marked open until resolved.",
+        )
+
     if not epg_mapping.is_success(response):
         _, message = epg_mapping.extract_error(response)
         close.status = "failed"

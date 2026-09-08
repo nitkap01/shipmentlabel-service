@@ -2,18 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Package, CalendarDays, Ban, AlertTriangle } from 'lucide-react'
+import { Package, CalendarDays, Ban, AlertTriangle, PackageOpen } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { api, type LabelStats, type SettingsOut } from '@/lib/api'
+import { api, type LabelStats, type ManifestOpenSummary, type SettingsOut } from '@/lib/api'
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<LabelStats | null>(null)
   const [settings, setSettings] = useState<SettingsOut | null>(null)
+  const [manifest, setManifest] = useState<ManifestOpenSummary | null>(null)
 
   useEffect(() => {
     api.get<LabelStats>('/labels/stats').then(setStats).catch(() => {})
     api.get<SettingsOut>('/settings').then(setSettings).catch(() => {})
+    api.get<ManifestOpenSummary>('/manifest/open').then(setManifest).catch(() => {})
   }, [])
 
   const tiles = [
@@ -30,9 +32,9 @@ export default function DashboardPage() {
         <p className="text-sm text-muted-foreground">Overview of shipment labels for Green Shadow Enterprises.</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {tiles.map(({ label, value, icon: Icon, warn }) => (
-          <Card key={label}>
+          <Card key={label} className="transition-shadow hover:animate-shake hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
               <Icon className={warn && value ? 'h-4 w-4 text-warning' : 'h-4 w-4 text-muted-foreground'} />
@@ -42,6 +44,18 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         ))}
+
+        <Link href="/manifest">
+          <Card className="border-primary/40 bg-primary/5 transition-shadow hover:animate-shake hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-primary">Opened items</CardTitle>
+              <PackageOpen className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-primary">{manifest?.open_count ?? '—'}</div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <Card>

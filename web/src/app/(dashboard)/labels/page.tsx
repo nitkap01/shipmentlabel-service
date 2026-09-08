@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useState } from 'react'
 import Link from 'next/link'
-import { Search } from 'lucide-react'
+import { Download, Search } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -10,7 +11,7 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LabelStatusBadge } from '@/components/app/status-badge'
-import { api, type LabelListResponse } from '@/lib/api'
+import { api, downloadFile, type LabelListResponse } from '@/lib/api'
 
 const PAGE_SIZE = 25
 
@@ -22,6 +23,8 @@ export default function LabelsPage() {
   const [page, setPage] = useState(1)
   const [data, setData] = useState<LabelListResponse | null>(null)
   const [loading, setLoading] = useState(false)
+  const [selected, setSelected] = useState<number[]>([])
+  const [downloading, setDownloading] = useState(false)
 
   const searchId = useId()
   const statusId = useId()
@@ -41,19 +44,39 @@ export default function LabelsPage() {
     const timeout = setTimeout(() => {
       api
         .get<LabelListResponse>(`/labels?${params.toString()}`)
-        .then(setData)
+        .then((result) => {
+          setData(result)
+          setSelected([])
+        })
         .finally(() => setLoading(false))
     }, 250)
     return () => clearTimeout(timeout)
   }, [q, status, fromDate, toDate, page])
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1
+  const downloadableIds = (data?.items ?? []).filter((l) => l.pdf_path).map((l) => l.id)
+  const allSelected = downloadableIds.length > 0 && selected.length === downloadableIds.length
+
+  function toggleOne(id: number) {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  async function downloadSelected() {
+    setDownloading(true)
+    try {
+      await downloadFile('/labels/download', { label_ids: selected })
+    } catch {
+      toast.error('Could not download the selected labels')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Labels</h1>
-        <p className="text-sm text-muted-foreground">Search by name, address, phone, or reference.</p>
+        <p className="text-sm text-muted-foreground">Search by name, address, phone, reference, or tracking number.</p>
       </div>
 
       <Card>
@@ -65,7 +88,7 @@ export default function LabelsPage() {
               <Input
                 id={searchId}
                 className="pl-9"
-                placeholder="Name, address, phone, reference…"
+                placeholder="Name, address, phone, reference, tracking number…"
                 value={q}
                 onChange={(e) => {
                   setPage(1)
@@ -119,10 +142,29 @@ export default function LabelsPage() {
         </CardContent>
       </Card>
 
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-sm text-muted-foreground">
+          {selected.length > 0 ? `${selected.length} selected` : 'Select labels to download their PDFs'}
+        </span>
+        <Button size="sm" disabled={selected.length === 0 || downloading} onClick={downloadSelected}>
+          <Download className="mr-2 h-4 w-4" />
+          {downloading ? 'Preparing…' : `Download selected${selected.length > 0 ? ` (${selected.length})` : ''}`}
+        </Button>
+      </div>
+
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <input
+                  type="checkbox"
+                  aria-label="Select all labels on this page"
+                  checked={allSelected}
+                  disabled={downloadableIds.length === 0}
+                  onChange={(e) => setSelected(e.target.checked ? downloadableIds : [])}
+                />
+              </TableHead>
               <TableHead>Recipient</TableHead>
               <TableHead>Address</TableHead>
               <TableHead>Created</TableHead>
@@ -134,13 +176,22 @@ export default function LabelsPage() {
           <TableBody>
             {!loading && data?.items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
                   No labels found.
                 </TableCell>
               </TableRow>
             )}
             {data?.items.map((label) => (
               <TableRow key={label.id}>
+                <TableCell>
+                  <input
+                    type="checkbox"
+                    aria-label={`Select label ${label.id}`}
+                    checked={selected.includes(label.id)}
+                    disabled={!label.pdf_path}
+                    onChange={() => toggleOne(label.id)}
+                  />
+                </TableCell>
                 <TableCell>
                   <Link href={`/labels/${label.id}`} className="font-medium text-primary hover:underline">
                     {label.recipient_name}

@@ -1,17 +1,19 @@
 import datetime
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bulk.report import build_labels_zip
 from app.config import settings as app_settings
 from app.db import get_db
 from app.epg import client as epg_client
+from app.labels_report import build_labels_report_xlsx
 from app.labels_service import create_label, get_settings_row
 from app.models import Label
-from app.schemas import LabelCreateRequest, LabelListResponse, LabelOut, LabelStats
+from app.schemas import LabelBulkDownloadRequest, LabelCreateRequest, LabelListResponse, LabelOut, LabelStats
 from app.security import require_admin
 from app.storage import StoragePathError, resolve_under_root
 
@@ -110,6 +112,53 @@ async def list_labels(
     items = (await db.execute(query)).scalars().all()
 
     return LabelListResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.post("/labels/download")
+async def download_labels_zip(payload: LabelBulkDownloadRequest, db: AsyncSession = Depends(get_db)):
+    if not payload.label_ids:
+        raise HTTPException(status_code=400, detail="No labels selected")
+
+    result = await db.execute(select(Label).where(Label.id.in_(payload.label_ids)))
+    labels = result.scalars().all()
+    if not any(label.pdf_path for label in labels):
+        raise HTTPException(status_code=404, detail="No PDFs found for the selected labels")
+
+    content = build_labels_zip(labels)
+    filename = f"labels-{datetime.datetime.now(datetime.timezone.utc):%Y%m%d-%H%M%S}.zip"
+    return StreamingResponse(
+        iter([content]),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/labels/report.xlsx")
+async def download_labels_report(
+    from_date: datetime.date | None = None,
+    to_date: datetime.date | None = None,
+    status: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(Label)
+    if status:
+        query = query.where(Label.status == status)
+    if from_date:
+        start = datetime.datetime.combine(from_date, datetime.time.min, tzinfo=APP_TZ)
+        query = query.where(Label.created_at >= start)
+    if to_date:
+        end = datetime.datetime.combine(to_date, datetime.time.max, tzinfo=APP_TZ)
+        query = query.where(Label.created_at <= end)
+
+    labels = (await db.execute(query.order_by(Label.created_at.desc()))).scalars().all()
+    content = build_labels_report_xlsx(labels, APP_TZ)
+
+    span = f"{from_date or 'start'}_to_{to_date or 'today'}"
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="labels_report_{span}.xlsx"'},
+    )
 
 
 @router.get("/labels/stats", response_model=LabelStats)

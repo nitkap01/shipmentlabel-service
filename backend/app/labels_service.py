@@ -94,6 +94,7 @@ async def create_label(
         declared_value=fields["declared_value"],
         currency_code="USD",
         reference1=fields.get("reference1"),
+        notes=fields.get("notes"),
     )
     db.add(label)
     await db.flush()  # assign label.id before building epg_reference_id

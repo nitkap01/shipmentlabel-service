@@ -106,6 +106,16 @@ def extract_error(response: dict) -> tuple[str | None, str]:
     return None, response.get("responseMessage") or "EPG returned an unspecified error"
 
 
+def is_ambiguous_close_response(response: dict) -> bool:
+    """A close call that got a non-error HTTP status back but an empty or
+    non-JSON body (client.py's `close_manifest` falls back to `{}` in that
+    case). There is no `wasSuccessful`/`errors`/`responseMessage` to read,
+    so we cannot tell whether EPG actually closed the account or not — this
+    must not be reported as a hard failure. Same "needs a human" precedent
+    as the timeout case (D30)."""
+    return response == {}
+
+
 def extract_label_png(response: dict) -> bytes:
     package = response.get("package") or {}
     labels = package.get("labels")

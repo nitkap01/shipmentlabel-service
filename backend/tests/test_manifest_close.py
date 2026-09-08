@@ -137,6 +137,25 @@ def test_timeout_leaves_close_pending_and_labels_open_and_is_persisted(logged_in
     assert open_ids == set(two_open_labels)
 
 
+def test_ambiguous_empty_close_response_leaves_close_pending_for_manual_resolution(
+    logged_in_client, two_open_labels, monkeypatch
+):
+    async def fake_close(environment, account_number):
+        return {}, {}
+
+    monkeypatch.setattr("app.routers.manifest.epg_client.close_manifest", fake_close)
+
+    resp = logged_in_client.post("/api/manifest/closes")
+    assert resp.status_code == 502
+
+    history = logged_in_client.get("/api/manifest/closes").json()
+    assert len(history) == 1
+    assert history[0]["status"] == "pending"
+
+    open_ids = {item["id"] for item in logged_in_client.get("/api/labels", params={"open_only": "true"}).json()["items"]}
+    assert open_ids == set(two_open_labels)
+
+
 def test_second_close_while_pending_returns_409(logged_in_client, two_open_labels, monkeypatch):
     async def fake_close_timeout(environment, account_number):
         raise EPGTimeoutError("connection timed out")

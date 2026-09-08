@@ -119,6 +119,7 @@ class Label(Base):
     declared_value: Mapped[Decimal]
     currency_code: Mapped[str]
     reference1: Mapped[str | None]
+    notes: Mapped[str | None]
 
     tracking_number: Mapped[str | None]
     unique_reference_id: Mapped[str | None]
@@ -134,7 +135,8 @@ class Label(Base):
     voided_at: Mapped[datetime.datetime | None]
     void_error: Mapped[str | None]
 
-    # Real expression lives in migrations/001_initial.sql (GENERATED ALWAYS AS ... STORED).
+    # Real expression lives in migrations/001_initial.sql, redefined by
+    # migrations/004_search_includes_tracking.sql (GENERATED ALWAYS AS ... STORED).
     # Computed() here only tells SQLAlchemy to never include this column in INSERT/UPDATE.
     search_text: Mapped[str | None] = mapped_column(Computed("NULL"), nullable=True)
 

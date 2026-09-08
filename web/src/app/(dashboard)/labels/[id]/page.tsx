@@ -110,6 +110,12 @@ export default function LabelDetailPage() {
             )}
             <Row label="Declared value" value={`${label.declared_value} ${label.currency_code}`} />
             {label.reference1 && <Row label="Reference" value={label.reference1} />}
+            {label.notes && (
+              <div className="space-y-1 pt-1">
+                <span className="text-muted-foreground">Additional notes (internal only)</span>
+                <p className="whitespace-pre-wrap rounded-md border border-input bg-muted/40 p-2 text-sm">{label.notes}</p>
+              </div>
+            )}
             <Row label="Tracking number" value={label.tracking_number ?? '—'} />
             <Row label="EPG reference ID" value={label.unique_reference_id ?? '—'} />
             <div className="flex justify-between gap-4">

@@ -48,6 +48,27 @@ export function downloadUrl(path: string): string {
   return `/api${path}`
 }
 
+export async function downloadFile(path: string, body: unknown): Promise<void> {
+  const res = await fetch(`/api${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new ApiError(res.status, `Download failed (${res.status})`)
+
+  const disposition = res.headers.get('content-disposition') || ''
+  const match = disposition.match(/filename="?([^"]+)"?/)
+  const blobUrl = URL.createObjectURL(await res.blob())
+  const link = document.createElement('a')
+  link.href = blobUrl
+  link.download = match?.[1] ?? 'download'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(blobUrl)
+}
+
 // --- Shared types (mirrors backend/app/schemas.py) ---
 
 export interface LabelOut {
@@ -77,6 +98,7 @@ export interface LabelOut {
   declared_value: string
   currency_code: string
   reference1: string | null
+  notes: string | null
   tracking_number: string | null
   unique_reference_id: string | null
   epg_error_code: string | null

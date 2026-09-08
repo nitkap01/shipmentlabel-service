@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, PackagePlus, FileSpreadsheet, Search, Settings, LogOut, Package, PackageOpen } from 'lucide-react'
+import { LayoutDashboard, PackagePlus, FileSpreadsheet, Search, Settings, LogOut, Package, PackageOpen, BarChart3 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -13,6 +13,7 @@ const links = [
   { href: '/bulk', label: 'Bulk Upload', icon: FileSpreadsheet },
   { href: '/labels', label: 'Labels', icon: Search },
   { href: '/manifest', label: 'Opened Items', icon: PackageOpen },
+  { href: '/reports', label: 'Reports', icon: BarChart3 },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 

@@ -4,12 +4,13 @@ import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-import { Field } from '@/components/app/field'
+import { Field, REQUIRED_FIELD_CLASS } from '@/components/app/field'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { api, ApiError, type LabelOut } from '@/lib/api'
 import { US_STATE_CODES } from '@/lib/us-states'
 
@@ -31,6 +32,7 @@ const emptyForm = {
   dimension_unit: 'inch',
   declared_value: '',
   reference1: '',
+  notes: '',
   service_code: '',
 }
 
@@ -57,9 +59,28 @@ export default function NewLabelPage() {
   const dimensionUnitId = useId()
   const referenceId = useId()
   const serviceCodeId = useId()
+  const notesId = useId()
 
   function set<K extends keyof typeof form>(key: K, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function lookupPostalCode(zip: string) {
+    if (!/^\d{5}$/.test(zip)) return
+    try {
+      const res = await fetch(`https://api.zippopotam.us/us/${zip}`)
+      if (!res.ok) return
+      const data = await res.json()
+      const place = data.places?.[0]
+      if (!place) return
+      setForm((prev) => ({
+        ...prev,
+        recipient_city: place['place name'] ?? prev.recipient_city,
+        recipient_state: place['state abbreviation'] ?? prev.recipient_state,
+      }))
+    } catch {
+      // Best-effort autofill only -- leave city/state as typed on any failure.
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -80,6 +101,7 @@ export default function NewLabelPage() {
         weight_unit: form.weight_unit,
         declared_value: Number(form.declared_value),
         reference1: form.reference1 || null,
+        notes: form.notes || null,
         service_code: form.service_code || null,
       }
       if (useDimensions) {
@@ -153,8 +175,16 @@ export default function NewLabelPage() {
             />
             <Field label="City" value={form.recipient_city} onChange={(v) => set('recipient_city', v)} required />
             <div className="space-y-2">
-              <Label htmlFor={stateId}>State</Label>
-              <Select id={stateId} value={form.recipient_state} onChange={(e) => set('recipient_state', e.target.value)} required>
+              <Label htmlFor={stateId}>
+                State<span className="ml-0.5 text-amber-600">*</span>
+              </Label>
+              <Select
+                id={stateId}
+                value={form.recipient_state}
+                onChange={(e) => set('recipient_state', e.target.value)}
+                required
+                className={REQUIRED_FIELD_CLASS}
+              >
                 <option value="">Select…</option>
                 {US_STATE_CODES.map((code) => (
                   <option key={code} value={code}>
@@ -166,9 +196,15 @@ export default function NewLabelPage() {
             <Field
               label="Postal code"
               value={form.recipient_postal_code}
-              onChange={(v) => set('recipient_postal_code', v)}
+              onChange={(v) => {
+                set('recipient_postal_code', v)
+                lookupPostalCode(v)
+              }}
               required
             />
+            <p className="text-xs text-muted-foreground sm:col-span-2 sm:-mt-2">
+              City and state auto-fill from a valid 5-digit postal code.
+            </p>
             <Field label="Phone" value={form.recipient_phone} onChange={(v) => set('recipient_phone', v)} />
             <Field label="Email" value={form.recipient_email} onChange={(v) => set('recipient_email', v)} />
           </CardContent>
@@ -181,7 +217,9 @@ export default function NewLabelPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor={weightId}>Weight</Label>
+                <Label htmlFor={weightId}>
+                  Weight<span className="ml-0.5 text-amber-600">*</span>
+                </Label>
                 <div className="flex gap-2">
                   <Input
                     id={weightId}
@@ -191,6 +229,7 @@ export default function NewLabelPage() {
                     value={form.weight_value}
                     onChange={(e) => set('weight_value', e.target.value)}
                     required
+                    className={REQUIRED_FIELD_CLASS}
                   />
                   <Select value={form.weight_unit} onChange={(e) => set('weight_unit', e.target.value)} className="w-28">
                     <option value="oz">oz</option>
@@ -242,6 +281,18 @@ export default function NewLabelPage() {
                   <option value="EP05">EP05 — Domestic eDGE</option>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor={notesId}>Additional notes</Label>
+              <Textarea
+                id={notesId}
+                value={form.notes}
+                onChange={(e) => set('notes', e.target.value)}
+                maxLength={1000}
+                placeholder="Customer-specific instructions for this shipment"
+              />
+              <p className="text-xs text-muted-foreground">Kept for internal reference only — not sent to EPG or printed on the label.</p>
             </div>
           </CardContent>
         </Card>

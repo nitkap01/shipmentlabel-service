@@ -42,9 +42,14 @@ class LabelCreateRequest(BaseModel):
 
     declared_value: Decimal
     reference1: str | None = Field(default=None, max_length=50)
+    notes: str | None = Field(default=None, max_length=1000)
 
     service_code: str | None = None
     from_override: FromAddressOverride | None = None
+
+
+class LabelBulkDownloadRequest(BaseModel):
+    label_ids: list[int]
 
 
 class LabelOut(BaseModel):
@@ -77,6 +82,7 @@ class LabelOut(BaseModel):
     declared_value: Decimal
     currency_code: str
     reference1: str | None
+    notes: str | None
 
     tracking_number: str | None
     unique_reference_id: str | None
