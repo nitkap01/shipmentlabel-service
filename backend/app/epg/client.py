@@ -165,7 +165,12 @@ async def close_manifest(environment: str, account_number: str) -> tuple[dict, d
     quota = quota_from_headers(resp.headers)
 
     if resp.status_code >= 400:
-        raise EPGError(f"EPG HTTP {resp.status_code}", status_code=resp.status_code)
+        try:
+            error_data = resp.json()
+        except ValueError:
+            error_data = {}
+        message = error_data.get("message") if isinstance(error_data, dict) else None
+        raise EPGError(message or f"EPG HTTP {resp.status_code}", status_code=resp.status_code)
 
     if not resp.content:
         return {}, quota

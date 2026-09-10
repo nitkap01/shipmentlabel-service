@@ -156,6 +156,20 @@ def test_ambiguous_empty_close_response_leaves_close_pending_for_manual_resoluti
     assert open_ids == set(two_open_labels)
 
 
+def test_epg_error_message_reaches_response_and_persisted_history(logged_in_client, two_open_labels, monkeypatch):
+    async def fake_close(environment, account_number):
+        raise EPGError("0 active unclosed packages were found for the given account number", status_code=400)
+
+    monkeypatch.setattr("app.routers.manifest.epg_client.close_manifest", fake_close)
+
+    resp = logged_in_client.post("/api/manifest/closes")
+    assert resp.status_code == 502
+    assert "0 active unclosed packages" in resp.json()["detail"]
+
+    history = logged_in_client.get("/api/manifest/closes").json()
+    assert history[0]["error_message"] == "0 active unclosed packages were found for the given account number"
+
+
 def test_second_close_while_pending_returns_409(logged_in_client, two_open_labels, monkeypatch):
     async def fake_close_timeout(environment, account_number):
         raise EPGTimeoutError("connection timed out")
