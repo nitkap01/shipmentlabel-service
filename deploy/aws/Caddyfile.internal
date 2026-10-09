@@ -1,0 +1,15 @@
+# Fallback when Let's Encrypt will not issue for the IP: Caddy's own certificate authority (browsers warn once).
+{
+	# clients do not send a server name (SNI) when they connect to a bare IP
+	default_sni {$PUBLIC_IP}
+}
+
+{$PUBLIC_IP} {
+	tls internal
+	encode zstd gzip
+	reverse_proxy web:3000
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}
