@@ -104,6 +104,7 @@ export interface LabelOut {
   epg_error_code: string | null
   epg_error_message: string | null
   pdf_path: string | null
+  pdf_deleted_at?: string | null
   voided_at: string | null
   void_error: string | null
   manifest_close_id: number | null

@@ -50,7 +50,12 @@ export default function LabelDetailPage() {
             Created {new Date(label.created_at).toLocaleString()} · {label.source === 'bulk' ? 'Bulk upload' : 'Single label'}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {!label.pdf_path && label.pdf_deleted_at && (
+            <span className="text-sm text-muted-foreground">
+              PDF removed {new Date(label.pdf_deleted_at).toLocaleString()} (a copy is in the S3 backup if it was backed up)
+            </span>
+          )}
           {label.pdf_path && (
             <a href={downloadUrl(`/labels/${label.id}/pdf`)} target="_blank" rel="noreferrer">
               <Button variant="outline">
