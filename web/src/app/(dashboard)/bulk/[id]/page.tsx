@@ -69,7 +69,7 @@ export default function BulkRunDetailPage() {
             <Stat label="Total rows" value={run.total_rows} />
             <Stat label="Valid rows" value={run.valid_rows} />
             <Stat label="Succeeded" value={run.success_count} />
-            <Stat label="Failed / invalid" value={run.failure_count} />
+            <Stat label="Not created (failed / check / duplicate)" value={run.failure_count} />
           </div>
 
           {isActive && (

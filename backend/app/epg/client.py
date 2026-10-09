@@ -199,7 +199,8 @@ async def void(environment: str, unique_reference_id: str) -> dict:
     except ValueError:
         raise EPGError(f"Non-JSON response from EPG (HTTP {resp.status_code})", status_code=resp.status_code)
 
-    if resp.status_code >= 400:
-        raise EPGError(str(data), status_code=resp.status_code)
+    if resp.status_code >= 400:  # e.g. 404 {"message": "...does not exist or has already been voided."}
+        message = data.get("message") if isinstance(data, dict) else None
+        raise EPGError(message or str(data), status_code=resp.status_code)
 
     return data

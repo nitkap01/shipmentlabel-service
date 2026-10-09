@@ -97,6 +97,18 @@ def is_success(response: dict) -> bool:
     return bool(response.get("wasSuccessful"))
 
 
+def void_result(reply) -> tuple[bool, str]:
+    """SHIP-5: did ePost confirm the void? Sandbox (09_10_2026): HTTP 200 with a list of
+    `{"package": {...}, "success": true, "secondaryMessage": ...}`; anything else is NOT a confirmed void."""
+    items = reply if isinstance(reply, list) else [reply] if isinstance(reply, dict) else []
+    if items and all(isinstance(i, dict) and i.get("success") is True for i in items):
+        return True, ""
+    for i in items:
+        if isinstance(i, dict) and (i.get("secondaryMessage") or i.get("message")):
+            return False, str(i.get("secondaryMessage") or i.get("message"))
+    return False, "ePost's reply did not confirm the void"
+
+
 def extract_error(response: dict) -> tuple[str | None, str]:
     errors = response.get("errors") or response.get("rateErrors")
     if isinstance(errors, list) and errors:
