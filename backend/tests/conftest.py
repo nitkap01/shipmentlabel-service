@@ -7,8 +7,8 @@ os.environ.setdefault(
     "DATABASE_URL", "postgresql+asyncpg://nitinkapoor@localhost:5432/shipmentlabel_test"
 )
 os.environ.setdefault("EPG_API_KEY_SANDBOX", "test-dummy-key")
-os.environ.setdefault("ADMIN_PASSWORD", "test-admin-pw")
-os.environ.setdefault("SESSION_SECRET", "test-session-secret")
+os.environ.setdefault("ADMIN_PASSWORD", "test-admin-password-0123")
+os.environ.setdefault("SESSION_SECRET", "test-session-secret-0123456789abcdef")
 os.environ.setdefault("LABEL_STORAGE_ROOT", tempfile.mkdtemp(prefix="shipmentlabel-tests-"))
 
 import pytest
@@ -54,7 +54,7 @@ def client():
 
 @pytest.fixture
 def logged_in_client(client):
-    resp = client.post("/api/auth/login", json={"password": "test-admin-pw"})
+    resp = client.post("/api/auth/login", json={"password": "test-admin-password-0123"})
     assert resp.status_code == 200
     return client
 

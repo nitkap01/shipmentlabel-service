@@ -10,7 +10,7 @@ def test_wrong_password_returns_401_and_no_cookie(client):
 
 
 def test_correct_password_sets_httponly_samesite_cookie(client):
-    resp = client.post("/api/auth/login", json={"password": "test-admin-pw"})
+    resp = client.post("/api/auth/login", json={"password": "test-admin-password-0123"})
     assert resp.status_code == 200
     assert resp.json() == {"authenticated": True}
     set_cookie_header = resp.headers.get("set-cookie", "")

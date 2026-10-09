@@ -28,8 +28,9 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 export DATABASE_URL=postgresql+asyncpg://<user>@localhost:5432/shipmentlabel
 export EPG_API_KEY_SANDBOX=<your sandbox key>
-export ADMIN_PASSWORD=changeme
-export SESSION_SECRET=<a long random string>
+# no defaults: the backend refuses to start without these (16+ / 32+ characters)
+export ADMIN_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(18))')"
+export SESSION_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
 export LABEL_STORAGE_ROOT=/tmp/shipmentlabel_storage
 uvicorn app.main:app --reload
 
