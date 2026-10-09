@@ -1,0 +1,17 @@
+# HTTPS for a bare IP (no domain): Let's Encrypt IP-address certificate. These are short-lived (about 6 days),
+# so the "shortlived" ACME profile is required; Caddy renews it automatically well before it expires.
+{
+	cert_issuer acme {
+		profile shortlived
+	}
+}
+
+{$PUBLIC_IP} {
+	encode zstd gzip
+	reverse_proxy web:3000
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}
