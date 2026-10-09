@@ -1,0 +1,33 @@
+# SHIP-6: AWS server overlay (EC2 t4g.large, ap-south-1, no domain).
+#   docker compose -f docker-compose.yml -f deploy/aws/docker-compose.aws.yml up -d --build
+# Caddy is the only public entry (80 -> 443). backend:8000 and web:3000 are bound to the server itself only.
+services:
+  backend:
+    ports: !override
+      - "127.0.0.1:8000:8000"
+    environment:
+      COOKIE_SECURE: "true"
+
+  web:
+    ports: !override
+      - "127.0.0.1:3000:3000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - web
+    environment:
+      PUBLIC_IP: ${PUBLIC_IP:?set PUBLIC_IP in .env}
+      TLS_MODE: ${TLS_MODE:-letsencrypt}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/aws/Caddyfile.${TLS_MODE:-letsencrypt}:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
