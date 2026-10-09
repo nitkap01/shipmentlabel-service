@@ -35,8 +35,8 @@ def test_browse_root_and_month_folder_links_files_to_labels(logged_in_client, la
     names = [f["name"] for f in root["folders"]]
     assert "labels" in names and ".backup" not in names  # hidden folder never shown
     month = logged_in_client.get("/api/files", params={"path": _folder_of(label["pdf_path"])}).json()
-    assert [f["path"] for f in month["files"]] == [label["pdf_path"]]
-    assert month["files"][0]["label"]["id"] == label["id"]
+    mine = [f for f in month["files"] if f["path"] == label["pdf_path"]]  # other tests leave PDFs in the same folder
+    assert len(mine) == 1 and mine[0]["label"]["id"] == label["id"]
 
 
 def test_download_one_and_zip_of_a_folder(logged_in_client, label):
@@ -45,7 +45,7 @@ def test_download_one_and_zip_of_a_folder(logged_in_client, label):
     z = logged_in_client.post("/api/files/zip", json={"paths": ["labels"]})
     assert z.status_code == 200
     names = zipfile.ZipFile(io.BytesIO(z.content)).namelist()
-    assert names == [label["pdf_path"]]
+    assert label["pdf_path"] in names and all(n.startswith("labels/") for n in names)
 
 
 @pytest.mark.parametrize("bad", ["../etc/passwd", "/etc/passwd", ".backup/status.json", "labels/../../x", ""])
