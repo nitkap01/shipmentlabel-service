@@ -90,6 +90,7 @@ class LabelOut(BaseModel):
     epg_error_message: str | None
 
     pdf_path: str | None
+    pdf_deleted_at: datetime.datetime | None = None
     voided_at: datetime.datetime | None
     void_error: str | None
     manifest_close_id: int | None

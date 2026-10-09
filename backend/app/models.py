@@ -131,6 +131,7 @@ class Label(Base):
 
     pdf_path: Mapped[str | None]
     pdf_size_bytes: Mapped[int | None]
+    pdf_deleted_at: Mapped[datetime.datetime | None]  # SHIP-8: PDF removed in the file manager (record kept)
 
     voided_at: Mapped[datetime.datetime | None]
     void_error: Mapped[str | None]
