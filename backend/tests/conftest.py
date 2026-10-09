@@ -46,6 +46,17 @@ async def _reset_db():
     yield
 
 
+@pytest.fixture(autouse=True)
+def _duplicate_guard_off_unless_marked(request, monkeypatch):
+    """SHIP-3's duplicate guard refuses identical labels bought minutes apart. Many older tests buy identical labels
+    on purpose (to test something else), so the guard is off for them; tests marked `duplicate_guard` keep it on."""
+    if request.node.get_closest_marker("duplicate_guard") is None:
+        async def no_duplicate(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr("app.labels_service.find_recent_duplicate", no_duplicate)
+
+
 @pytest.fixture
 def client():
     with TestClient(app) as c:

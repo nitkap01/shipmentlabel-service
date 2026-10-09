@@ -1,5 +1,6 @@
 """SHIP-2 (record saved before buying), SHIP-3 (no double purchase), SHIP-5 (void only when ePost confirms)."""
 import io
+from decimal import Decimal
 
 import pytest
 from openpyxl import load_workbook
@@ -13,6 +14,8 @@ from app.epg.client import EPGError, EPGTimeoutError
 from app.models import BulkRunRow, Label
 from tests.conftest import make_ship_success
 from tests.test_bulk_runner import _make_queued_run
+
+pytestmark = pytest.mark.duplicate_guard
 
 PAYLOAD = {
     "recipient_name": "Jane Doe",
@@ -56,7 +59,8 @@ async def test_label_row_is_committed_before_epost_is_called(monkeypatch):
 
     async with SessionLocal() as db:
         settings_row = await get_settings_row(db)
-        fields = dict(PAYLOAD, service_code="EP05", dimension_unit=None, length_value=None)
+        fields = dict(PAYLOAD, service_code="EP05", dimension_unit=None, length_value=None,
+                      weight_value=Decimal("8"), declared_value=Decimal("10.00"))  # as the API's schema delivers them
         with pytest.raises(RuntimeError):
             await create_label(db, fields=fields, source="single", bulk_run_id=None, settings_row=settings_row)
         await db.rollback()
