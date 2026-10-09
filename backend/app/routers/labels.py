@@ -10,8 +10,9 @@ from app.bulk.report import build_labels_zip
 from app.config import settings as app_settings
 from app.db import get_db
 from app.epg import client as epg_client
+from app.epg import mapping as epg_mapping
 from app.labels_report import build_labels_report_xlsx
-from app.labels_service import create_label, get_settings_row
+from app.labels_service import DuplicateLabelError, create_label, get_settings_row
 from app.models import Label
 from app.schemas import LabelBulkDownloadRequest, LabelCreateRequest, LabelListResponse, LabelOut, LabelStats
 from app.security import require_admin
@@ -47,14 +48,17 @@ async def create_single_label(payload: LabelCreateRequest, db: AsyncSession = De
             "email": override.email,
         }
 
-    label = await create_label(
-        db,
-        fields=fields,
-        source="single",
-        bulk_run_id=None,
-        settings_row=settings_row,
-        from_override=from_override,
-    )
+    try:
+        label = await create_label(
+            db,
+            fields=fields,
+            source="single",
+            bulk_run_id=None,
+            settings_row=settings_row,
+            from_override=from_override,
+        )
+    except DuplicateLabelError as exc:  # SHIP-3: nothing bought
+        raise HTTPException(status_code=409, detail=str(exc))
     await db.commit()
     await db.refresh(label)
     return label
@@ -214,14 +218,19 @@ async def void_label(label_id: int, db: AsyncSession = Depends(get_db)):
     if not label.unique_reference_id:
         raise HTTPException(status_code=400, detail="Label has no uniqueReferenceId to void")
 
-    settings_row = await get_settings_row(db)
+    # SHIP-5: void in the environment the label was BOUGHT in (not whatever Settings says now), and only mark it
+    # voided when ePost confirms. Success = HTTP 200 with every package `"success": true` (checked in the sandbox,
+    # 09_10_2026); already voided / unknown = HTTP 404 {"message": ...}.
     try:
-        await epg_client.void(settings_row.epg_environment, label.unique_reference_id)
+        reply = await epg_client.void(label.epg_environment, label.unique_reference_id)
+        ok, message = epg_mapping.void_result(reply)
     except epg_client.EPGError as exc:
-        label.void_error = str(exc)
+        ok, message = False, str(exc)
+    if not ok:
+        label.void_error = message
         await db.commit()
         await db.refresh(label)
-        raise HTTPException(status_code=502, detail=f"EPG void failed: {exc}")
+        raise HTTPException(status_code=502, detail=f"EPG did not confirm the void: {message}")
 
     label.status = "voided"
     label.voided_at = datetime.datetime.now(datetime.timezone.utc)

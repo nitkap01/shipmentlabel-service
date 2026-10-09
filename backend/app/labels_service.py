@@ -4,9 +4,9 @@ writes a `labels` row.
 """
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.epg import client as epg_client
@@ -15,6 +15,58 @@ from app.models import AppSettings, Label
 from app.pdf import png_bytes_to_pdf_bytes
 from app.storage import sanitize_filename_part, write_bytes_under_root
 from app.units import to_inches, to_ounces
+
+
+# SHIP-3: an identical label bought this recently is treated as an accidental repeat (double click after a slow
+# answer, re-uploading a sheet that still held bought rows). A label whose purchase is still uncertain ("pending",
+# needs checking) blocks an identical one for a whole day.
+DUPLICATE_WINDOW = timedelta(minutes=15)
+UNCERTAIN_WINDOW = timedelta(hours=24)
+
+
+class DuplicateLabelError(Exception):
+    def __init__(self, existing: "Label"):
+        self.existing = existing
+        when = existing.created_at.strftime("%Y-%m-%d %H:%M UTC")
+        what = "may already have been bought (needs checking)" if existing.status == "pending" else "was bought"
+        super().__init__(
+            f"Not bought: an identical label (#{existing.id}"
+            + (f", tracking {existing.tracking_number}" if existing.tracking_number else "")
+            + f") {what} at {when}. Check that label first. If a second identical label is really needed, "
+            "give it a different reference."
+        )
+
+
+def _norm(s: str | None) -> str:
+    return " ".join((s or "").lower().split())
+
+
+async def find_recent_duplicate(
+    db: AsyncSession, *, fields: dict, weight_oz, from_address1: str, environment: str, bulk_run_id: int | None
+) -> "Label | None":
+    now = datetime.now(timezone.utc)
+    q = (
+        select(Label)
+        .where(
+            Label.epg_environment == environment,
+            Label.service_code == fields["service_code"],
+            func.lower(Label.recipient_name) == _norm(fields["recipient_name"]),
+            func.lower(Label.recipient_address1) == _norm(fields["recipient_address1"]),
+            Label.recipient_postal_code == (fields["recipient_postal_code"] or "").strip(),
+            Label.weight_oz == weight_oz,
+            func.coalesce(Label.reference1, "") == (fields.get("reference1") or ""),
+            func.lower(Label.from_address1) == _norm(from_address1),
+            or_(
+                (Label.status == "created") & (Label.created_at > now - DUPLICATE_WINDOW),
+                (Label.status == "pending") & (Label.created_at > now - UNCERTAIN_WINDOW),
+            ),
+        )
+        .order_by(Label.created_at.desc())
+        .limit(1)
+    )
+    if bulk_run_id is not None:  # identical rows inside one bulk file are intentional (two boxes, one customer)
+        q = q.where(or_(Label.bulk_run_id.is_(None), Label.bulk_run_id != bulk_run_id))
+    return (await db.execute(q)).scalars().first()
 
 
 def digits_only(phone: str | None) -> str | None:
@@ -52,6 +104,13 @@ async def create_label(
         "phone": settings_row.from_phone,
         "email": settings_row.from_email,
     }
+
+    existing = await find_recent_duplicate(
+        db, fields=fields, weight_oz=weight_oz, from_address1=from_block["address1"],
+        environment=settings_row.epg_environment, bulk_run_id=bulk_run_id,
+    )
+    if existing is not None:
+        raise DuplicateLabelError(existing)
 
     label = Label(
         created_at=datetime.now(timezone.utc),
@@ -122,6 +181,10 @@ async def create_label(
         }
     )
     label.epg_request_json = request_body
+    # SHIP-2: the pending row is COMMITTED before ePost is asked to buy. If anything goes wrong after the purchase
+    # (crash, restart, database error, timeout), the row is still there as "pending" = needs checking, so a charge
+    # can never exist without a record.
+    await db.commit()
 
     try:
         response, quota = await epg_client.ship(settings_row.epg_environment, request_body)

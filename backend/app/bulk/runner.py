@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bulk.parse import validate_raw_row
 from app.db import SessionLocal
 from app.epg.client import EPGNotConfiguredError
-from app.labels_service import create_label, get_settings_row
+from app.labels_service import DuplicateLabelError, create_label, get_settings_row
 from app.models import BulkRun, BulkRunRow
 
 SEQUENTIAL_DELAY_SECONDS = 0.5
@@ -90,12 +90,27 @@ async def process_run(db: AsyncSession, run: BulkRun) -> None:
             run.error_message = str(exc)
             await db.commit()
             return
+        except DuplicateLabelError as exc:  # SHIP-3: identical label bought minutes ago / still uncertain: not bought
+            row.status = "duplicate"
+            row.label_id = exc.existing.id
+            row.epg_error_message = str(exc)
+            row.processed_at = datetime.now(timezone.utc)
+            run.failure_count += 1
+            await db.commit()
+            continue
 
         row.processed_at = datetime.now(timezone.utc)
         if label.status == "created":
             row.status = "success"
             row.label_id = label.id
             run.success_count += 1
+        elif label.status == "pending":
+            # SHIP-3: timed out or bought-but-no-PDF: ePost may have charged. NOT "failed", so it never lands in the
+            # re-uploadable Failed Rows sheet (re-uploading it would buy the label again).
+            row.status = "needs_checking"
+            row.label_id = label.id
+            row.epg_error_message = label.epg_error_message
+            run.failure_count += 1
         else:
             row.status = "failed"
             row.epg_error_code = label.epg_error_code

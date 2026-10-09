@@ -153,7 +153,7 @@ async def test_quota_exhaustion_stops_run_and_skips_remaining_rows(monkeypatch, 
         assert run.error_message and "quota" in run.error_message.lower()
 
 
-async def test_timeout_leaves_label_pending_and_row_marked_failed_not_retried(monkeypatch):
+async def test_timeout_leaves_label_pending_and_row_needs_checking_not_retried(monkeypatch):
     async def fake_ship(environment, body):
         raise EPGTimeoutError("connection timed out")
 
@@ -170,7 +170,10 @@ async def test_timeout_leaves_label_pending_and_row_marked_failed_not_retried(mo
         assert labels[0].status == "pending"  # ambiguous outcome, never marked failed (D8)
 
         rows = (await db.execute(select(BulkRunRow).where(BulkRunRow.bulk_run_id == run.id))).scalars().all()
-        assert rows[0].status == "failed"  # not left `pending` at the row level, so it is never resent
+        # SHIP-3: not left `pending` (never resent) and not `failed` either (it would go into the re-uploadable
+        # Failed Rows sheet and be bought twice): its own status, linked to the uncertain label
+        assert rows[0].status == "needs_checking"
+        assert rows[0].label_id == labels[0].id
 
         # Resuming again must not re-send this row.
         run.status = "queued"
